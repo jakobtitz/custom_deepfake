@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>revel8 Avatar</title>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+    #avatar-video { width: 100%; height: 100%; object-fit: cover; }
+  </style>
+</head>
+<body>
+  <video id="avatar-video" autoplay playsinline></video>
+
+  <script>
+    const video = document.getElementById('avatar-video');
+    let room;
+
+    async function start() {
+      try {
+        // 1. Get LiveKit credentials from serverless function
+        console.log('[revel8] Getting session...');
+        
+        const res = await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await res.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Session failed');
+        }
+        
+        console.log('[revel8] Session ready');
+
+        // 2. Setup LiveKit room
+        room = new LivekitClient.Room({
+          adaptiveStream: true,
+          dynacast: true,
+          audioCaptureDefaults: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 16000,
+            channelCount: 1,
+          },
+          publishDefaults: {
+            dtx: true,
+            red: true,
+            audioPreset: LivekitClient.AudioPresets.speech,
+          },
+        });
+
+        // Handle tracks
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+          console.log('[revel8] Track:', track.kind);
+          if (track.kind === 'video') {
+            track.attach(video);
+          }
+          if (track.kind === 'audio') {
+            const audioEl = track.attach();
+            document.body.appendChild(audioEl);
+          }
+        });
+
+        room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track) => {
+          track.detach();
+        });
+
+        // 3. Connect
+        console.log('[revel8] Connecting...');
+        await room.connect(data.livekit_url, data.livekit_client_token);
+        console.log('[revel8] Connected!');
+
+        // 4. Enable microphone
+        try {
+          await room.localParticipant.setMicrophoneEnabled(true, {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          });
+          console.log('[revel8] Microphone enabled');
+        } catch (e) {
+          console.warn('[revel8] Mic error:', e.message);
+        }
+
+      } catch (e) {
+        console.error('[revel8] Error:', e.message);
+      }
+    }
+
+    start();
+    
+    window.onbeforeunload = () => { if (room) room.disconnect(); };
+  </script>
+</body>
+</html>
