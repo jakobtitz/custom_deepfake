@@ -14,8 +14,8 @@ module.exports = async function handler(req, res) {
 
   // Read from Vercel Environment Variables
   const API_KEY = process.env.LIVEAVATAR_API_KEY;
-  const AVATAR_ID = process.env.AVATAR_ID || 'acab2901-7118-431e-881c-914992e194a6';
-  const VOICE_ID = process.env.VOICE_ID || 'd06244d0-6311-46b3-a740-abc8d46ed494';
+  const AVATAR_ID = process.env.AVATAR_ID;
+  const VOICE_ID = process.env.VOICE_ID;
   const CONTEXT_ID = process.env.CONTEXT_ID;
 
   if (!API_KEY) {
